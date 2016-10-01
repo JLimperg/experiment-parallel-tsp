@@ -28,3 +28,24 @@ executable tsp
   other-extensions:    OverloadedStrings
                      , ScopedTypeVariables
   ghc-options:         -O2
+
+
+benchmark tsp-bench
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      src
+                     , bench
+  main-is:             BenchMain.hs
+  default-language:    Haskell2010
+  build-depends:       base
+                     , array
+                     , containers
+                     , unordered-containers
+                     , random
+                     , text
+
+                     , criterion
+  other-modules:       TSP
+                     , TSPCalc
+  other-extensions:    OverloadedStrings
+                     , ScopedTypeVariables
+  ghc-options:         -O2

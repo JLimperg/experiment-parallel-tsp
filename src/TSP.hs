@@ -2,7 +2,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module TSP
-( parseTSP
+( TSP
+, parseTSP
 , randomTours
 ) where
 
