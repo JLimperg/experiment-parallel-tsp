@@ -20,6 +20,7 @@ executable tsp
   build-depends:       base
                      , array
                      , containers
+                     , parallel
                      , unordered-containers
                      , random
                      , text
@@ -27,7 +28,7 @@ executable tsp
                      , TSPCalc
   other-extensions:    OverloadedStrings
                      , ScopedTypeVariables
-  ghc-options:         -O2
+  ghc-options:         -O2 -threaded -with-rtsopts=-N
 
 
 benchmark tsp-bench
@@ -39,6 +40,7 @@ benchmark tsp-bench
   build-depends:       base
                      , array
                      , containers
+                     , parallel
                      , unordered-containers
                      , random
                      , text
@@ -48,4 +50,4 @@ benchmark tsp-bench
                      , TSPCalc
   other-extensions:    OverloadedStrings
                      , ScopedTypeVariables
-  ghc-options:         -O2
+  ghc-options:         -O2 -threaded -with-rtsopts=-N

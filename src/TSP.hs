@@ -5,28 +5,48 @@ module TSP
 ( TSP
 , parseTSP
 , randomTours
+, randomToursPar
 ) where
 
 import           Control.Monad.ST (ST, runST)
+import           Control.Parallel.Strategies (parMap, rdeepseq)
 import           Data.Array.ST
   (MArray, STArray, getElems, newListArray, readArray, writeArray)
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
+import           Data.List
 import           Data.Text (Text)
 import qualified Data.Text as Text
-import           System.Random (RandomGen, randomR)
+import           System.Random (RandomGen, randomR, split)
 
 import           TSPCalc
 
-type TSP = ([(Text, Text)],[Node])
+
+type Specs = [(Text, Text)]
+type TSP = (Specs,[Node])
+
 
 randomTours :: (RandomGen g) => g -> TSP -> Int -> HashMap Int Int
-randomTours gen (specs, nodes) n =
-    let weightFun
-          = dispatchDistance . snd . head
-          . dropWhile (\(opt, _) -> opt /= "EDGE_WEIGHT_TYPE")
-          $ specs
-    in  mapRandomTours weightFun n nodes gen
+randomTours gen (specs, nodes) n
+    = mapRandomTours (extractDistanceFunction specs) n nodes gen
+
+
+splits :: (RandomGen g) => g -> [g]
+splits = iterate (snd . split)
+
+
+randomToursPar :: (RandomGen g) => g -> TSP -> Int -> Int -> HashMap Int Int
+randomToursPar gen tsp nCores n
+    = let gens  = take nCores $ splits gen
+          n'    = n `div` nCores
+          tours = parMap rdeepseq (\gen -> randomTours gen tsp n') gens
+      in  foldr (Map.unionWith (+)) Map.empty tours
+
+
+extractDistanceFunction :: Specs -> DistanceFunction
+extractDistanceFunction
+    = dispatchDistance . snd . head
+    . dropWhile (\(opt, _) -> opt /= "EDGE_WEIGHT_TYPE")
 
 
 dispatchDistance :: Text -> DistanceFunction
