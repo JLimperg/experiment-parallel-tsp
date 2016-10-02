@@ -19,13 +19,17 @@ library
   build-depends:       base
                      , array
                      , containers
+                     , deepseq
+                     , hashable
                      , parallel
                      , unordered-containers
                      , random
                      , text
   exposed-modules:     TSP
-  other-modules:       TSPCalc
-  other-extensions:    OverloadedStrings
+  other-modules:       TSP.Calc
+                     , TSP.Types
+  other-extensions:    DeriveGeneric
+                     , OverloadedStrings
                      , ScopedTypeVariables
   ghc-options:         -O2
 

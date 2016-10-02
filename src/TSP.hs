@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module TSP
-( TSP
+( module TSP.Types
 , parseTSP
 , randomTours
 , randomToursPar
@@ -12,6 +12,7 @@ import           Control.Monad.ST (ST, runST)
 import           Control.Parallel.Strategies (parMap, rdeepseq)
 import           Data.Array.ST
   (MArray, STArray, getElems, newListArray, readArray, writeArray)
+import           Data.Hashable (Hashable)
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
 import           Data.List
@@ -19,20 +20,22 @@ import           Data.Text (Text)
 import qualified Data.Text as Text
 import           System.Random (RandomGen, randomR, split)
 
-import           TSPCalc
-
-
-type Specs = [(Text, Text)]
-type TSP = (Specs,[Node])
+import           TSP.Calc
+import           TSP.Types
 
 
 randomTours :: (RandomGen g) => g -> TSP -> Int -> HashMap Int Int
-randomTours gen (specs, nodes) n
-    = mapRandomTours (extractDistanceFunction specs) n nodes gen
+randomTours gen (TSP distance nodes) n
+    = mapRandomTours distance n nodes gen
 
 
 splits :: (RandomGen g) => g -> [g]
 splits = iterate (snd . split)
+
+
+unionsWith
+    :: (Eq k, Hashable k) => (v -> v -> v) -> [HashMap k v] -> HashMap k v
+unionsWith f = foldr (Map.unionWith f) Map.empty
 
 
 randomToursPar :: (RandomGen g) => g -> TSP -> Int -> Int -> HashMap Int Int
@@ -40,18 +43,19 @@ randomToursPar gen tsp nCores n
     = let gens  = take nCores $ splits gen
           n'    = n `div` nCores
           tours = parMap rdeepseq (\gen -> randomTours gen tsp n') gens
-      in  foldr (Map.unionWith (+)) Map.empty tours
+      in  unionsWith (+) tours
 
 
-extractDistanceFunction :: Specs -> DistanceFunction
+extractDistanceFunction :: [(Text, Text)] -> DistanceFunction
 extractDistanceFunction
     = dispatchDistance . snd . head
     . dropWhile (\(opt, _) -> opt /= "EDGE_WEIGHT_TYPE")
+  where
+    dispatchDistance "EUC_2D" = Euclid2D
+    dispatchDistance "GEO"    = Geo
+    dispatchDistance d
+        = error $ "Unknown distance function: " ++ Text.unpack d
 
-
-dispatchDistance :: Text -> DistanceFunction
-dispatchDistance "EUC_2D" = euc_2d
-dispatchDistance "GEO" = geo
 
 mapRandomTours :: (RandomGen g) => DistanceFunction -> Int -> [Node] -> g -> HashMap Int Int
 mapRandomTours f n tour = mapRandomTours' f n tour Map.empty
@@ -87,12 +91,18 @@ shuffle xs gen = runST $ do
 -- an integer ID, an x and a y coordinate), then we simply put the specs into pairs while reading the numeric values of the
 -- nodes, before returning a pair containing a list of specs and a list of nodes.
 parseTSP :: Text -> TSP
-parseTSP tspSpec = (map (\spec -> let (keyword, value) = Text.break (==' ') spec
+parseTSP spec
+    = let (specs, nodes) = parseTSP' spec in
+      TSP (extractDistanceFunction specs) nodes
+
+
+parseTSP' :: Text -> ([(Text, Text)], [Node])
+parseTSP' tspSpec = (map (\spec -> let (keyword, value) = Text.break (==' ') spec
                                    in (keyword, Text.drop 3 value))
-                      specs
-                   ,map (\node -> let vals = Text.words node
-                                   in (read (Text.unpack $ head vals), read (Text.unpack $ vals!!1), read (Text.unpack $ vals!!2)))
-                      $ stripJunk nodes)
+                       specs
+                    ,map (\node -> let vals = Text.words node
+                                   in Node (read . Text.unpack $ head vals) (read . Text.unpack $ vals!!1) (read . Text.unpack $ vals!!2))
+                       $ stripJunk nodes)
   where (specs, nodes) = Prelude.break (=="NODE_COORD_SECTION") $ Text.lines tspSpec
         stripJunk txt  = Prelude.dropWhile (\x -> x == "" || Text.isInfixOf "_SECTION" x)
                          (if last txt == "EOF" then init txt else txt)
