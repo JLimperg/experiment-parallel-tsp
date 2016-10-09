@@ -3,7 +3,7 @@
 
 module TSP
 ( module TSP.Types
-, parseTSP
+, module TSP.Parser
 , randomTours
 , randomToursPar
 ) where
@@ -21,6 +21,7 @@ import qualified Data.Text as Text
 import           System.Random (RandomGen, randomR, split)
 
 import           TSP.Calc
+import           TSP.Parser
 import           TSP.Types
 
 
@@ -44,17 +45,6 @@ randomToursPar gen tsp nCores n
           n'    = n `div` nCores
           tours = parMap rdeepseq (\gen -> randomTours gen tsp n') gens
       in  unionsWith (+) tours
-
-
-extractDistanceFunction :: [(Text, Text)] -> DistanceFunction
-extractDistanceFunction
-    = dispatchDistance . snd . head
-    . dropWhile (\(opt, _) -> opt /= "EDGE_WEIGHT_TYPE")
-  where
-    dispatchDistance "EUC_2D" = Euclid2D
-    dispatchDistance "GEO"    = Geo
-    dispatchDistance d
-        = error $ "Unknown distance function: " ++ Text.unpack d
 
 
 mapRandomTours :: (RandomGen g) => DistanceFunction -> Int -> [Node] -> g -> HashMap Int Int
@@ -84,25 +74,3 @@ shuffle xs gen = runST $ do
                                        writeArray arr pick counterVal
                                        writeArray arr counter pickVal
                                        shuffleRec arr (counter+1) newGen
-
--- a function to parse and interpret simple Traveling Salesman problems if given in the correct format. Doesn't work on all
--- .tsp files/texts. It's only written for basic TSP problems which have a specification section and a coordinate section.
--- we divide the text into specifications (what type of edge weight, what kind of problem, etc.) and nodes (consisting of
--- an integer ID, an x and a y coordinate), then we simply put the specs into pairs while reading the numeric values of the
--- nodes, before returning a pair containing a list of specs and a list of nodes.
-parseTSP :: Text -> TSP
-parseTSP spec
-    = let (specs, nodes) = parseTSP' spec in
-      TSP (extractDistanceFunction specs) nodes
-
-
-parseTSP' :: Text -> ([(Text, Text)], [Node])
-parseTSP' tspSpec = (map (\spec -> let (keyword, value) = Text.break (==' ') spec
-                                   in (keyword, Text.drop 3 value))
-                       specs
-                    ,map (\node -> let vals = Text.words node
-                                   in Node (read . Text.unpack $ head vals) (read . Text.unpack $ vals!!1) (read . Text.unpack $ vals!!2))
-                       $ stripJunk nodes)
-  where (specs, nodes) = Prelude.break (=="NODE_COORD_SECTION") $ Text.lines tspSpec
-        stripJunk txt  = Prelude.dropWhile (\x -> x == "" || Text.isInfixOf "_SECTION" x)
-                         (if last txt == "EOF" then init txt else txt)

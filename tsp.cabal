@@ -21,12 +21,15 @@ library
                      , containers
                      , deepseq
                      , hashable
+                     , megaparsec
                      , parallel
+                     , scientific
                      , unordered-containers
                      , random
                      , text
   exposed-modules:     TSP
   other-modules:       TSP.Calc
+                     , TSP.Parser
                      , TSP.Types
   other-extensions:    DeriveGeneric
                      , OverloadedStrings
@@ -39,13 +42,15 @@ executable tsp
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:       base
+                     , filepath
+                     , megaparsec
                      , parallel
                      , unordered-containers
                      , random
                      , text
 
                      , tsp
-  other-extensions:    OverloadedStrings
+  other-extensions:    TupleSections
   ghc-options:         -O2 -threaded -with-rtsopts=-N
 
 
@@ -55,6 +60,7 @@ benchmark tsp-bench
   main-is:             BenchMain.hs
   default-language:    Haskell2010
   build-depends:       base
+                     , megaparsec
                      , random
                      , text
 

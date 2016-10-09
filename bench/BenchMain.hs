@@ -1,6 +1,7 @@
 import           Criterion.Main
 import qualified Data.Text.IO as Text
 import           System.Random (StdGen, mkStdGen)
+import           Text.Megaparsec.Error (parseErrorPretty)
 
 import           TSP
 
@@ -24,7 +25,8 @@ main = defaultMain $ (:[]) $ env getTSP $ \tsp ->
       ]
   where
     ns = [100, 1000, 10000]
-    getTSP = parseTSP <$> Text.readFile tspFile
+    getTSP = either onError id . parseTSP <$> Text.readFile tspFile
+    onError e = error $ "Parse error: " ++ parseErrorPretty e
 
 
 benchRandomTours :: TSP -> Int -> Benchmark
